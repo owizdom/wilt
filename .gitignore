@@ -1,0 +1,5 @@
+out/
+out_full/
+data/
+__pycache__/
+docs/

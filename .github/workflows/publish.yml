@@ -1,0 +1,61 @@
+name: publish
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch data branch
+        id: data
+        run: |
+          if git ls-remote --exit-code --heads origin refs/heads/data >/dev/null 2>&1; then
+            git fetch --depth=1 origin data
+            git worktree add --detach data-branch FETCH_HEAD
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "data branch not created yet, skipping publish"
+          fi
+      - name: Fetch releases
+        if: steps.data.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/Layr-Labs/d-inference/releases --paginate > /tmp/releases.json \
+            || cp tests/fixtures/releases.json /tmp/releases.json
+      - name: Build page
+        if: steps.data.outputs.exists == 'true'
+        run: |
+          python3 wilt.py --raw data-branch --releases /tmp/releases.json --out /tmp/out
+          mkdir -p site
+          cp /tmp/out/index.html site/index.html
+      - name: Commit if changed
+        if: steps.data.outputs.exists == 'true'
+        run: |
+          if git diff --quiet -- site/index.html && [ -z "$(git ls-files --others --exclude-standard site/index.html)" ]; then
+            echo "site unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/index.html
+          git commit -m "site: update index.html"
+          git push origin HEAD:main

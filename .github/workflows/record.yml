@@ -1,0 +1,53 @@
+name: record
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: record
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare data branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin refs/heads/data >/dev/null 2>&1; then
+            git fetch --depth=1 origin data
+            git worktree add -B data ../data-branch FETCH_HEAD
+          else
+            git worktree add --detach ../data-branch
+            git -C ../data-branch checkout --orphan data
+            git -C ../data-branch rm -rf --quiet . || true
+          fi
+      - name: Snapshot
+        run: python3 -m record.snapshot --out ../data-branch
+      - name: Prune
+        run: python3 -m record.prune --out ../data-branch --days 14
+      - name: Commit and force-push
+        working-directory: ../data-branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git rev-parse --verify HEAD >/dev/null 2>&1; then
+            git commit --amend --no-edit --allow-empty --date=now --reset-author
+          else
+            git commit -m "snapshots"
+          fi
+          git push --force origin data
