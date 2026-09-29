@@ -1,12 +1,14 @@
 """Build events.json and EVENTS.md from recorded snapshots and releases.
 """
 import json
+from datetime import datetime, timezone
 import os
 from collections import Counter
 
 from detect.events import find_releases, find_restarts
 from detect.snapshots import load_stats
 from measure.metrics import measure_event
+from report.history import load_history, merge_history, write_history
 from report.page import render_page
 from report.timeline import build_timeline, event_window
 
@@ -15,6 +17,10 @@ STUCK_STATUSES = ("online", "serving")
 
 def _iso(dt):
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse(iso):
+    return datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
 
 
 def _is_stuck(p):
@@ -100,7 +106,7 @@ def _render_markdown(events, stuck_now, skipped_files):
     return "\n".join(lines)
 
 
-def build_report(raw_dir, releases_path, out_dir):
+def build_report(raw_dir, releases_path, out_dir, history_path=None):
     """Read raw_dir (stats/*.json.gz) and releases_path, write
     out_dir/events.json, out_dir/EVENTS.md and out_dir/index.html.
 
@@ -128,6 +134,27 @@ def build_report(raw_dir, releases_path, out_dir):
         event.update(metrics)
         events.append(event)
 
+    all_events = None
+    if history_path:
+        computed_keys = set((e["kind"], e["at"], e["label"]) for e in events)
+        existing = load_history(history_path)
+        if snapshots:
+            merged = merge_history(existing, events, snapshots[-1][0])
+            write_history(history_path, merged)
+        else:
+            merged = existing
+        all_events = sorted(merged, key=lambda e: e["at"], reverse=True)
+        by_key = dict(((e["kind"], e["at"], e["label"]), e) for e in all_events)
+        events = all_events
+        events_raw = [
+            (_parse(e["at"]), e["kind"], e["label"], None)
+            for e in all_events
+            if (e["kind"], e["at"], e["label"]) in computed_keys
+        ]
+        events_raw_events = [by_key[(k, _iso(a), l)] for a, k, l, _m in events_raw]
+    else:
+        events_raw_events = events
+
     stuck_now = _stuck_now(snapshots)
 
     os.makedirs(out_dir, exist_ok=True)
@@ -142,7 +169,7 @@ def build_report(raw_dir, releases_path, out_dir):
     # mix before it; events.json and EVENTS.md stay unchanged.
     timeline = build_timeline(snapshots)
     page_events = []
-    for (at, _kind, _label, _metrics), event in zip(events_raw, events):
+    for (at, _kind, _label, _metrics), event in zip(events_raw, events_raw_events):
         page_event = dict(event)
         page_event.update(event_window(snapshots, at, timeline=timeline))
         page_events.append(page_event)
@@ -158,6 +185,8 @@ def build_report(raw_dir, releases_path, out_dir):
         "stuck_now": stuck_now,
         "span": span,
     }
+    if all_events is not None:
+        page_data["all_events"] = all_events
     with open(os.path.join(out_dir, "index.html"), "w", encoding="utf-8") as f:
         f.write(render_page(page_data))
 

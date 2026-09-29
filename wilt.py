@@ -29,9 +29,14 @@ def main(argv=None):
         "--out", required=True,
         help="output directory for events.json, EVENTS.md and index.html",
     )
+    parser.add_argument(
+        "--history", default=None,
+        help="permanent event log (JSONL) to merge into and rewrite",
+    )
     args = parser.parse_args(argv)
 
-    result = build_report(args.raw, args.releases, args.out)
+    result = build_report(args.raw, args.releases, args.out,
+                          history_path=args.history)
 
     restarts = sum(1 for e in result["events"] if e.get("kind") == "restart")
     releases = sum(1 for e in result["events"] if e.get("kind") == "release")

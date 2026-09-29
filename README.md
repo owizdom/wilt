@@ -93,6 +93,10 @@ Recovery times measured from this recording are coarser than from a 95-second re
 
 A second workflow rebuilds `site/index.html` from the `data` branch hourly and pushes to `main` only when the page changed. When the Vercel project is connected to the repo, each push to `main` deploys through its Git integration, and the `data` branch is skipped. The workflows use no secrets beyond the built-in `GITHUB_TOKEN`.
 
+## Permanent event log
+
+The data branch keeps 14 days of snapshots, so `history/events.jsonl` on `main` keeps every scored event for good, one JSON line each. An event is rewritten on each run until 3.5 hours after it happened, then it is final and never changes; the hourly workflow commits the file with the page, and the table on the page lists the whole log.
+
 ## What it does not do
 
 wilt does not alert or notify. It does not analyze routing, earnings or per-model behavior. It never writes to any Darkbloom endpoint.

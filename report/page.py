@@ -1131,7 +1131,17 @@ def _fleet_section(data):
     return _FLEET_TMPL % _esc(title)
 
 
-def _event_section(events):
+AGED_OUT_LINE = ("The newest event's snapshot detail has aged out. "
+                 "Its metrics are in the table below.")
+
+
+def _event_section(events, aged=False):
+    if aged:
+        return _EVENT_TMPL % (
+            '<p class="clock" id="ev-nowin" style="font-size:clamp(1.4rem,3.5vw,2.4rem)">%s</p>'
+            % _esc(AGED_OUT_LINE),
+            "",
+        )
     if events and not events[0].get("window"):
         return _EVENT_TMPL % (
             '<p class="clock" id="ev-nowin" style="font-size:clamp(1.4rem,3.5vw,2.4rem)">%s</p>'
@@ -1200,8 +1210,11 @@ def _none_section():
 
 
 def _table_section(events):
+    intro = ""
     if events:
-        body = _table(events)
+        first = (events[-1].get("at") or "")[:10]
+        intro = '<p class="sub">%d events scored since %s</p>' % (len(events), _esc(first))
+        body = intro + _table(events)
     else:
         body = '<p class="sub">%s</p>' % _esc(NO_EVENTS_LINE)
     return (
@@ -1216,12 +1229,17 @@ def render_page(data):
     string. The data is embedded verbatim as JSON in a
     <script type="application/json" id="wilt-data"> block."""
     events = data.get("events") or []
+    all_events = data.get("all_events")
+    if all_events is None:
+        all_events = events
+    aged = (data.get("all_events") is not None and bool(events)
+            and all_events[0]["at"] > events[0]["at"])
     parts = [_open_section(data), _fleet_section(data)]
     if events:
-        parts.extend([_event_section(events), _THROUGHPUT, _LEFT])
+        parts.extend([_event_section(events, aged), _THROUGHPUT, _LEFT])
     else:
         parts.append(_none_section())
-    parts.extend([_now_section(data), _table_section(events)])
+    parts.extend([_now_section(data), _table_section(all_events)])
 
     span = data.get("span") or {}
     foot = "wilt. %s snapshots, all times UTC." % _num(span.get("snapshots", 0), 0)

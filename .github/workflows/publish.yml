@@ -44,18 +44,19 @@ jobs:
       - name: Build page
         if: steps.data.outputs.exists == 'true'
         run: |
-          python3 wilt.py --raw data-branch --releases /tmp/releases.json --out /tmp/out
+          python3 wilt.py --raw data-branch --releases /tmp/releases.json --out /tmp/out \
+            --history history/events.jsonl
           mkdir -p site
           cp /tmp/out/index.html site/index.html
       - name: Commit if changed
         if: steps.data.outputs.exists == 'true'
         run: |
-          if git diff --quiet -- site/index.html && [ -z "$(git ls-files --others --exclude-standard site/index.html)" ]; then
-            echo "site unchanged"
+          if git diff --quiet -- site/index.html history/events.jsonl && [ -z "$(git ls-files --others --exclude-standard site/index.html history/events.jsonl)" ]; then
+            echo "site and history unchanged"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/index.html
-          git commit -m "site: update index.html"
+          git add site/index.html history/events.jsonl
+          git commit -m "site: update index.html and event history"
           git push origin HEAD:main
