@@ -21,6 +21,9 @@ class PruneExactName(unittest.TestCase):
                              ["20260101T000000Z.json.gz"])
             self.assertIn("2026928T1234Z.json.gz", os.listdir(d))
         self.assertIsNone(prune._parse("20260101T000000Z.json.gz\n"))
+        # Loose names a plain strptime would accept must not parse at all.
+        self.assertIsNone(prune._parse("2026928T1234Z.json.gz"))
+        self.assertIsNone(prune._parse("202611T1234Z.json.gz"))
 
 
 if __name__ == "__main__":

@@ -39,6 +39,8 @@ jobs:
         run: python3 -m record.snapshot --out ../data-branch
       - name: Prune
         run: python3 -m record.prune --out ../data-branch --days 14
+      - name: Keep Vercel from deploying the data branch
+        run: cp vercel.json ../data-branch/vercel.json
       - name: Commit and force-push
         working-directory: ../data-branch
         run: |

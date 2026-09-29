@@ -105,4 +105,4 @@ The local recorder in `record/record_raw.sh` polls the public Darkbloom API with
 python3 -m unittest discover -s tests -t .
 ```
 
-The suite runs on Python 3.9 and later and uses only the standard library.
+The code uses only the standard library and runs on Python 3.9 and later. The workflow checks in the test suite need either PyYAML or `actionlint` installed, and fail without one of them.
