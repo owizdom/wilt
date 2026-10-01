@@ -1,0 +1,8 @@
+{
+  "outputDirectory": "site",
+  "git": {
+    "deploymentEnabled": {
+      "data": false
+    }
+  }
+}
