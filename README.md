@@ -1,5 +1,7 @@
 # wilt
 
+Status: discontinued on 2026-10-01. The hosted page is offline and the recording and publishing workflows are disabled. The code still runs locally on recorded snapshots. One known issue was left unfixed: GitHub ran the 10-minute schedule only every few hours, and with that much provider id churn between snapshots the restart detector flagged false restarts, so `history/events.jsonl` contains false restart events from 2026-09-30 onward.
+
 Every Darkbloom coordinator restart and provider release, and the Macs it leaves wilted.
 
 wilt scores Darkbloom coordinator deploys and provider releases from outside the system. It reads recorded public snapshots and nothing else.
